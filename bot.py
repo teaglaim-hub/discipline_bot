@@ -46,7 +46,7 @@ domain_kb = ReplyKeyboardMarkup(
 
 checkin_kb = ReplyKeyboardMarkup(
     keyboard=[[KeyboardButton(text="Сделано ✅")],
-              [KeyboardButton(text="Частично 🌓")],
+              [KeyboardButton(text="Сделано частично 🌓")],
               [KeyboardButton(text="Не сделано ❌")]],
     resize_keyboard=True, one_time_keyboard=True)
 
@@ -182,7 +182,7 @@ async def handle_done(message: Message):
     
     await message.answer(text)
 
-@dp.message(F.text == "Частично 🌓")
+@dp.message(F.text == "Сделано частично 🌓")
 async def handle_partial(message: Message):
     user = get_user_by_tg_id(message.from_user.id)
     if not user:
