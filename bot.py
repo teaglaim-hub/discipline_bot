@@ -46,7 +46,7 @@ domain_kb = ReplyKeyboardMarkup(
 
 checkin_kb = ReplyKeyboardMarkup(
     keyboard=[[KeyboardButton(text="Сделано ✅")],
-              [KeyboardButton(text="Частично 🌓")]
+              [KeyboardButton(text="Частично 🌓")],
               [KeyboardButton(text="Не сделано ❌")]],
     resize_keyboard=True, one_time_keyboard=True)
 
