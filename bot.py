@@ -154,11 +154,13 @@ async def handle_done(message: Message):
         await message.answer("Сначала пройди /start.")
         return
     
-    prev_status = get_today_checkin_status(user["id"])
+    user_id = user["id"]
+    prev_status = get_today_checkin_status(user_id)
     create_checkin_simple(message.from_user.id, "done")
     
     today_str = datetime.now().strftime("%Y-%m-%d")
-    evening_already_sent = (user["last_checkin_reminder_sent"] == today_str)
+    last_checkin_reminder_sent = user["last_checkin_reminder_sent"]
+    evening_already_sent = (last_checkin_reminder_sent == today_str)
     
     if prev_status is None:
         text = (
@@ -187,11 +189,13 @@ async def handle_partial(message: Message):
         await message.answer("Сначала пройди /start.")
         return
     
-    prev_status = get_today_checkin_status(user["id"])
+    user_id = user["id"]
+    prev_status = get_today_checkin_status(user_id)
     create_checkin_simple(message.from_user.id, "partial")
     
     today_str = datetime.now().strftime("%Y-%m-%d")
-    evening_already_sent = (user["last_checkin_reminder_sent"] == today_str)
+    last_checkin_reminder_sent = user["last_checkin_reminder_sent"]
+    evening_already_sent = (last_checkin_reminder_sent == today_str)
     
     if prev_status is None:
         text = (
@@ -220,11 +224,13 @@ async def handle_fail(message: Message):
         await message.answer("Сначала пройди /start.")
         return
     
-    prev_status = get_today_checkin_status(user["id"])
+    user_id = user["id"]
+    prev_status = get_today_checkin_status(user_id)
     create_checkin_simple(message.from_user.id, "fail")
     
     today_str = datetime.now().strftime("%Y-%m-%d")
-    evening_already_sent = (user["last_checkin_reminder_sent"] == today_str)
+    last_checkin_reminder_sent = user["last_checkin_reminder_sent"]
+    evening_already_sent = (last_checkin_reminder_sent == today_str)
     
     if prev_status is None:
         text = (
