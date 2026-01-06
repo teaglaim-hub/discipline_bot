@@ -248,39 +248,71 @@ async def send_daily_checkins():
 async def cmd_week(message: Message):
     data = get_week_stats_for_user(message.from_user.id)
     if not data:
-        await message.answer("За последние 7 дней нет данных.")
+        await message.answer("За последние 7 дней по текущему фокусу нет данных.\nСначала задай фокус через /start и фиксируй дни.")
         return
+
     focus_title = data["title"]
     stats = data["stats"]
+    streak = data.get("streak", 0)
     last_7_days = data.get("last_7_days", [])
+
     done = stats.get("done", 0)
     partial = stats.get("partial", 0)
     fail = stats.get("fail", 0)
     total = done + partial + fail
-    if total == 0:
-        await message.answer("За последние 7 дней нет чек-инов.")
-        return
-    effective_done = done + partial * 0.5
-    percent = round(effective_done / total * 100) if total > 0 else 0
-    def status_to_emoji(s):
-        if s == "done": return "✅"
-        if s == "partial": return "🌓"
-        if s == "fail": return "❌"
-        return "⬜"
-    heatmap = "".join(status_to_emoji(s) for s in last_7_days[:7])
-    bars = "█" * int(percent / 10) + "░" * (10 - int(percent / 10))
-    await message.answer(f"Недельный срез:\n«{focus_title}»\n\n{heatmap}\n\n✅ {done}  🌓 {partial}  ❌ {fail}\n\n{bars}  {percent}%")
 
-@dp.message(Command("streak"))
-async def cmd_streak(message: Message):
-    data = get_streak_for_user(message.from_user.id)
-    if not data:
-        await message.answer("Пока нет данных по текущему фокусу.")
+    if total == 0:
+        await message.answer("За последние 7 дней по текущему фокусу нет ни одного чек-ина.\nПопробуй хотя бы пару дней подряд фиксировать результат с помощью кнопок.")
         return
-    focus_title = data["title"]
-    current = data["current_streak"]
-    best = data["best_streak"]
-    await message.answer(f"Фокус: «{focus_title}»\n\nТекущая серия: {current} дн.\nЛучшая серия: {best} дн.")
+
+    effective_done = done + partial * 0.5
+    percent = round(effective_done / total * 100)
+
+    blocks = 10
+    filled = int(round(effective_done / total * blocks))
+    bar = "█" * filled + "░" * (blocks - filled)
+
+    if percent == 0:
+        summary_text = "Старт всегда даётся непросто. Попробуй в ближайшие дни хотя бы пару раз отметить фокус, даже минимально."
+    elif percent < 40:
+        summary_text = "Ты сделал несколько шагов, это уже лучше, чем ноль. Подумай, как упростить фокус или привязать его к существующей привычке."
+    elif percent < 80:
+        summary_text = "У тебя уже неплохая динамика. Чуть-чуть добавить стабильности — и неделя станет почти полностью зелёной."
+    elif percent < 100:
+        summary_text = "Неделя почти полностью зелёная — очень круто. Продолжай в том же духе или чуть усложни фокус, если чувствуешь силы."
+    else:
+        summary_text = "Идеальная неделя по фокусу — 100% выполнений. Можешь либо закрепить результат, либо перейти к следующему уровню сложности."
+
+    if streak > 1:
+        summary_text += f"\n\nТы держишься уже {streak} дней подряд!"
+    elif streak == 1:
+        summary_text += "\n\nОтличное начало серии — первый день уже в копилке!"
+
+    non_empty = [s for s in last_7_days if s is not None]
+    padded = non_empty + [None] * (7 - len(non_empty))
+    padded = padded[:7]
+
+    def status_to_emoji(status):
+        if status == "done": return "✅"
+        if status == "partial": return "🌓"
+        if status == "fail": return "❌"
+        return "⬜"
+
+    heatmap = "".join(status_to_emoji(status) for status in padded)
+
+    await message.answer(
+        "Недельный срез по фокусу:\n"
+        f"«{focus_title}»\n\n"
+        f"{heatmap}  (последние 7 дней)\n\n"
+        f"✅ Сделано: {done}\n"
+        f"🌓 Частично: {partial}\n"
+        f"❌ Не сделано: {fail}\n\n"
+        f"{bar}  {percent}% за последние 7 дней\n\n"
+        f"{summary_text}"
+    )
+
+    if done == 7 and partial == 0 and fail == 0:
+        await message.answer("Браво! У тебя закрыты все 7 дней по фокусу подряд 💚\nМожешь усложнить задачу или выбрать новый фокус через команду /focus.")
 
 @dp.message(Command("focus"))
 async def cmd_focus(message: Message):
