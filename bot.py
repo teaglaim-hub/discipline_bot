@@ -153,8 +153,32 @@ async def handle_done(message: Message):
     if not user:
         await message.answer("Сначала пройди /start.")
         return
+    
+    prev_status = get_today_checkin_status(user["id"])
     create_checkin_simple(message.from_user.id, "done")
-    await message.answer("Отлично, сегодня фокус закрыт ✅")
+    
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    evening_already_sent = (user["last_checkin_reminder_sent"] == today_str)
+    
+    if prev_status is None:
+        text = (
+            "Отлично, день засчитан 👌\n"
+            "Если вдруг передумаешь — просто выбери другую кнопку, "
+            "я обновлю статус за сегодня."
+        )
+    else:
+        if evening_already_sent:
+            text = (
+                "Статус на сегодня обновлён на: сделано ✅\n"
+                "Обновил недельную статистику."
+            )
+        else:
+            text = (
+                "Статус на сегодня обновлён на: сделано ✅\n"
+                "Вечером и в статистике учту именно этот вариант."
+            )
+    
+    await message.answer(text)
 
 @dp.message(F.text == "Частично 🌓")
 async def handle_partial(message: Message):
@@ -162,8 +186,32 @@ async def handle_partial(message: Message):
     if not user:
         await message.answer("Сначала пройди /start.")
         return
+    
+    prev_status = get_today_checkin_status(user["id"])
     create_checkin_simple(message.from_user.id, "partial")
-    await message.answer("Зафиксировали частичный прогресс 🌓")
+    
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    evening_already_sent = (user["last_checkin_reminder_sent"] == today_str)
+    
+    if prev_status is None:
+        text = (
+            "Зафиксировали частичный прогресс 🌓\n"
+            "Если вдруг передумаешь — просто выбери другую кнопку, "
+            "я обновлю статус за сегодня."
+        )
+    else:
+        if evening_already_sent:
+            text = (
+                "Статус на сегодня обновлён на: сделано частично 🌓\n"
+                "Обновил недельную статистику."
+            )
+        else:
+            text = (
+                "Статус на сегодня обновлён на: сделано частично 🌓\n"
+                "Вечером и в статистике учту именно этот вариант."
+            )
+    
+    await message.answer(text)
 
 @dp.message(F.text == "Не сделано ❌")
 async def handle_fail(message: Message):
@@ -171,8 +219,32 @@ async def handle_fail(message: Message):
     if not user:
         await message.answer("Сначала пройди /start.")
         return
+    
+    prev_status = get_today_checkin_status(user["id"])
     create_checkin_simple(message.from_user.id, "fail")
-    await message.answer("Ок, бывает. Завтра попробуем ещё раз ❌")
+    
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    evening_already_sent = (user["last_checkin_reminder_sent"] == today_str)
+    
+    if prev_status is None:
+        text = (
+            "Ок, бывает. Завтра попробуем ещё раз ❌\n"
+            "Если вдруг передумаешь — просто выбери другую кнопку, "
+            "я обновлю статус за сегодня."
+        )
+    else:
+        if evening_already_sent:
+            text = (
+                "Статус на сегодня обновлён на: не сделано ❌\n"
+                "Обновил недельную статистику."
+            )
+        else:
+            text = (
+                "Статус на сегодня обновлён на: не сделано ❌\n"
+                "Вечером и в статистике учту именно этот вариант."
+            )
+    
+    await message.answer(text)
 
 @dp.message(F.text == "Чекин 📋")
 async def handle_manual_checkin(message: Message):
