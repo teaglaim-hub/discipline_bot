@@ -11,7 +11,8 @@ from aiogram.fsm.context import FSMContext
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from config import BOT_TOKEN
+from config import BOT_TOKEN, ACHIEVEMENT_LEVELS, ACHIEVEMENT_THRESHOLDS
+
 from db import (
     init_db,
     get_user_by_tg_id,
@@ -55,6 +56,15 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
 scheduler = AsyncIOScheduler()
+
+def get_achievement_level(streak: int) -> int:
+    level = 0
+    for idx, days in enumerate(ACHIEVEMENT_THRESHOLDS, start=1):
+        if streak >= days:
+            level = idx
+        else:
+            break
+    return level
 
 # --- клавиатуры ---
 
@@ -493,6 +503,29 @@ async def cmd_week(message: Message):
     elif streak == 1:
         summary_text += "\n\nОтличное начало серии — первый день уже в копилке!"
 
+    level = get_achievement_level(streak)
+    if level > 0:
+        emoji = ACHIEVEMENT_LEVELS[level]
+        if level < len(ACHIEVEMENT_THRESHOLDS):
+            next_days = ACHIEVEMENT_THRESHOLDS[level]
+            days_left = max(0, next_days - streak)
+            summary_text += (
+                f"\n\n🏅 Ачивка: уровень {level} {emoji}"
+                f"\n⏭ До следующего уровня: {days_left} дн."
+            )
+        else:
+            summary_text += (
+                f"\n\n🏅 Ачивка: уровень {level} {emoji}"
+                f"\n🎉 Ты на максимальном уровне по серии!"
+            )
+    else:
+        first_target = ACHIEVEMENT_THRESHOLDS[0]
+        summary_text += (
+            f"\n\n🏅 Пока без ачивки."
+            f"\nЦель: {first_target} зелёных дней подряд."
+        )
+
+
     # heatmap за последние 7 дней:
     # берём только дни с чек-ином, сдвигаем к началу, остальное добиваем пустыми
     non_empty = [s for s in last_7_days if s is not None]
@@ -652,7 +685,28 @@ async def handle_done(message: Message):
                 "Вечером и в статистике учту именно этот вариант."
             )
 
+    # --- ачивки по стрику зелёных дней ---
+    data = await get_streak_for_user(message.from_user.id)
+    if data:
+        current_streak = data.get("current_streak", 0)
+
+        # считаем, что до сегодняшнего дня стрик был на 1 меньше
+        old_level = get_achievement_level(max(0, current_streak - 1))
+        new_level = get_achievement_level(current_streak)
+
+        if new_level > old_level and new_level > 0:
+            emoji = ACHIEVEMENT_LEVELS[new_level]
+            days_required = ACHIEVEMENT_THRESHOLDS[new_level - 1]
+
+            await message.answer(
+                "🎉 Новая ачивка!\n"
+                f"{emoji} Ты держишься уже {current_streak} дней подряд.\n"
+                f"Это уровень {new_level} (порог {days_required} дней)."
+            )
+
     await message.answer(text)
+
+
 
 
 @dp.message(F.text == "Сделано частично 🌓")
