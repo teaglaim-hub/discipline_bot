@@ -770,6 +770,11 @@ async def setup_bot_commands():
 
 # --- main ---
 
+@dp.message(Command("menu"))
+async def cmd_menu(message: Message):
+    await message.answer("Используй кнопку для чекинов:", reply_markup=checkin_manual_kb)
+
+
 async def main():
     await init_db()
     await setup_bot_commands()
