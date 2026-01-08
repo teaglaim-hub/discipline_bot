@@ -240,18 +240,26 @@ async def process_timezone(message: Message, state: FSMContext):
 
     # Берём дату ТОЛЬКО из now_user_tz, а время — из ввода
     morning_dt_local = dt_class.strptime(
-    f"{today_str} {morning_time_user}",
-    "%Y-%m-%d %H:%M",
+        f"{today_str} {morning_time_user}",
+        "%Y-%m-%d %H:%M",
     ).replace(tzinfo=user_tz)
 
     evening_dt_local = dt_class.strptime(
-    f"{today_str} {evening_time_user}",
-    "%Y-%m-%d %H:%M",
+        f"{today_str} {evening_time_user}",
+        "%Y-%m-%d %H:%M",
     ).replace(tzinfo=user_tz)
-    
+
+    # Переводим локальное время пользователя в UTC
+    morning_utc = morning_dt_local.astimezone(pytz_timezone("UTC"))
+    evening_utc = evening_dt_local.astimezone(pytz_timezone("UTC"))
+
+    # В стейт кладём строки HH:MM по UTC
+    morning_time_utc = morning_utc.strftime("%H:%M")
+    evening_time_utc = evening_utc.strftime("%H:%M")
+
     last_morning_sent = today_str if morning_time_user <= current_time_str else None
     last_evening_sent = today_str if evening_time_user <= current_time_str else None
-    
+
     await state.update_data(
         timezone=timezone_str,
         morning_time_utc=morning_time_utc,
@@ -260,6 +268,7 @@ async def process_timezone(message: Message, state: FSMContext):
         last_morning_sent=last_morning_sent,
         last_evening_sent=last_evening_sent
     )
+
     
     await message.answer(
         "С какой сферы начнём?\n"
@@ -421,13 +430,14 @@ async def send_morning_focus():
         # Конвертируем текущее UTC время в timezone пользователя
         user_tz = pytz_timezone(user["timezone"] or "Europe/Moscow")
         now_user = now_utc.astimezone(user_tz)
-        current_time_str = now_user.strftime("%H:%M")
         today_str = now_user.strftime("%Y-%m-%d")
 
-        morning_time = user["morning_time"]
-        if morning_time > current_time_str:
-            continue
+        # В БД лежит время в UTC, сравниваем тоже с UTC
+        morning_time_utc = user["morning_time"]
+        current_time_utc_str = now_utc.strftime("%H:%M")
 
+        if morning_time_utc > current_time_utc_str:
+            continue
 
         # если уже есть чек-ин за сегодня – утро пропускаем,
         # но помечаем, чтобы больше не слать за этот день
