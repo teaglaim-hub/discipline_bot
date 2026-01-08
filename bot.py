@@ -425,11 +425,11 @@ async def send_morning_focus():
         now_user = now_utc.astimezone(user_tz)
         current_time_str = now_user.strftime("%H:%M")
         today_str = now_user.strftime("%Y-%m-%d")
-        
-        # Сравниваем: пришло ли время для этого пользователя
+
         morning_time = user["morning_time"]
-        if morning_time < current_time_str:
+        if morning_time > current_time_str:
             continue
+
 
         # если уже есть чек-ин за сегодня – утро пропускаем,
         # но помечаем, чтобы больше не слать за этот день
@@ -496,13 +496,16 @@ async def send_daily_checkins():
         # Конвертируем текущее UTC время в timezone пользователя
         user_tz = pytz_timezone(user["timezone"] or "Europe/Moscow")
         now_user = now_utc.astimezone(user_tz)
-        current_time_str = now_user.strftime("%H:%M")
         today_str = now_user.strftime("%Y-%m-%d")
-        
-        # Сравниваем: пришло ли время для этого пользователя
-        checkin_time = user["checkin_time"]
-        if checkin_time < current_time_str:
+
+        # В БД лежит UTC-время, сравниваем тоже с UTC
+        checkin_time_utc = user["checkin_time"]
+        current_time_utc_str = now_utc.strftime("%H:%M")
+
+        if checkin_time_utc > current_time_utc_str:
             continue
+
+
 
         status = await get_today_checkin_status(user_id, today_str)
 
