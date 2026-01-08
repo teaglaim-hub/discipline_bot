@@ -236,20 +236,18 @@ async def process_timezone(message: Message, state: FSMContext):
     
     # Конвертируем время пользователя в UTC
     from datetime import datetime as dt_class
-    # Парсим время как если бы оно было в user_tz
-    morning_dt = dt_class.strptime(morning_time_user, "%H:%M").replace(
-        tzinfo=user_tz, year=now_user_tz.year, month=now_user_tz.month, day=now_user_tz.day
-    )
-    evening_dt = dt_class.strptime(evening_time_user, "%H:%M").replace(
-        tzinfo=user_tz, year=now_user_tz.year, month=now_user_tz.month, day=now_user_tz.day
-    )
-    
-    # Конвертируем в UTC
-    morning_utc = morning_dt.astimezone(pytz_timezone('UTC'))
-    evening_utc = evening_dt.astimezone(pytz_timezone('UTC'))
-    
-    morning_time_utc = morning_utc.strftime("%H:%M")
-    evening_time_utc = evening_utc.strftime("%H:%M")
+    # Вместо replace(... year=now_user_tz.year ...) делаем так:
+
+    # Берём дату ТОЛЬКО из now_user_tz, а время — из ввода
+    morning_dt_local = dt_class.strptime(
+    f"{today_str} {morning_time_user}",
+    "%Y-%m-%d %H:%M",
+    ).replace(tzinfo=user_tz)
+
+    evening_dt_local = dt_class.strptime(
+    f"{today_str} {evening_time_user}",
+    "%Y-%m-%d %H:%M",
+    ).replace(tzinfo=user_tz)
     
     last_morning_sent = today_str if morning_time_user <= current_time_str else None
     last_evening_sent = today_str if evening_time_user <= current_time_str else None
