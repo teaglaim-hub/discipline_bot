@@ -254,15 +254,13 @@ async def process_timezone(message: Message, state: FSMContext):
     last_morning_sent = today_str if morning_time_user <= current_time_str else None
     last_evening_sent = today_str if evening_time_user <= current_time_str else None
     
-    await update_user_name_and_time(
-        tg_id=message.from_user.id,
-        name=data["name"],
-        morning_time=morning_time_utc,
-        checkin_time=evening_time_utc,
-        start_date=today_str,
-        last_morning_sent=last_morning_sent,
-        last_checkin_reminder_sent=last_evening_sent,
+        await state.update_data(
         timezone=timezone_str,
+        morning_time_utc=morning_time_utc,
+        evening_time_utc=evening_time_utc,
+        today_str=today_str,
+        last_morning_sent=last_morning_sent,
+        last_evening_sent=last_evening_sent
     )
     
     await message.answer(
