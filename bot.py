@@ -428,8 +428,7 @@ async def send_morning_focus():
         
         # Сравниваем: пришло ли время для этого пользователя
         morning_time = user["morning_time"]
-        if morning_time > current_time_str:
-            # Ещё не пришло время
+        if morning_time < current_time_str:
             continue
 
         # если уже есть чек-ин за сегодня – утро пропускаем,
@@ -502,8 +501,7 @@ async def send_daily_checkins():
         
         # Сравниваем: пришло ли время для этого пользователя
         checkin_time = user["checkin_time"]
-        if checkin_time > current_time_str:
-            # Ещё не пришло время
+        if checkin_time < current_time_str:
             continue
 
         status = await get_today_checkin_status(user_id, today_str)
