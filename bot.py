@@ -1,5 +1,4 @@
 import asyncio
-from datetime import datetime
 from db import get_today_checkin_status, create_checkin_simple, get_user_by_tg_id
 
 
@@ -8,6 +7,8 @@ from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, BotCommand
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
+from pytz import timezone as pytz_timezone
+from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -39,6 +40,7 @@ class Onboarding(StatesGroup):
     waiting_for_name = State()
     waiting_for_morning_time = State()
     waiting_for_evening_time = State()
+    waiting_for_timezone = State()
     waiting_for_domain = State()
     waiting_for_focus = State()
 
@@ -67,6 +69,24 @@ def get_achievement_level(streak: int) -> int:
     return level
 
 # --- клавиатуры ---
+
+# Часовые пояса РФ и их аналоги
+TIMEZONE_OPTIONS = [
+    ("Москва/Стамбул (UTC+3)", "Europe/Moscow"),
+    ("Калининград (UTC+2)", "Europe/Kaliningrad"),
+    ("Екатеринбург/Пакистан (UTC+5)", "Asia/Yekaterinburg"),
+    ("Новосибирск/Бангкок (UTC+6)", "Asia/Novosibirsk"),
+    ("Иркутск/Бангкок (UTC+7)", "Asia/Krasnoyarsk"),
+    ("Якутск/Гон-Конг (UTC+8)", "Asia/Yakutsk"),
+    ("Магадан/Сеул (UTC+9)", "Asia/Magadan"),
+    ("Петропавловск-Камчатский (UTC+11)", "Asia/Kamchatka"),
+]
+
+timezone_kb = ReplyKeyboardMarkup(
+    keyboard=[[KeyboardButton(text=tz[0])] for tz in TIMEZONE_OPTIONS],
+    resize_keyboard=True,
+    one_time_keyboard=True,
+)
 
 domain_kb = ReplyKeyboardMarkup(
     keyboard=[
@@ -189,22 +209,79 @@ async def process_evening_time(message: Message, state: FSMContext):
     last_morning_sent = today_str if morning_time <= current_time_str else None
     last_checkin_reminder_sent = today_str if checkin_time <= current_time_str else None
 
+    await state.update_data(evening_time=evening_time)
+    
+    await message.answer(
+        "В каком часовом поясе ты находишься? Это нужно, чтобы я правильно понимал твое время уведомлений.",
+        reply_markup=timezone_kb,
+    )
+    await state.set_state(Onboarding.waiting_for_timezone)
+
+@dp.message(Onboarding.waiting_for_timezone)
+async def process_timezone(message: Message, state: FSMContext):
+    selected_text = message.text.strip()
+    
+    # Найти pytz timezone по выбранному тексту
+    timezone_str = None
+    for display_name, tz_name in TIMEZONE_OPTIONS:
+        if display_name == selected_text:
+            timezone_str = tz_name
+            break
+    
+    if not timezone_str:
+        await message.answer(
+            "Выбери из предложенных вариантов, пожалуйста."
+        )
+        return
+    
+    data = await state.get_data()
+    now_utc = datetime.now(pytz_timezone('UTC'))
+    user_tz = pytz_timezone(timezone_str)
+    now_user_tz = now_utc.astimezone(user_tz)
+    today_str = now_user_tz.strftime("%Y-%m-%d")
+    current_time_str = now_user_tz.strftime("%H:%M")
+    
+    morning_time_user = data["morning_time"]
+    evening_time_user = data["evening_time"]
+    
+    # Конвертируем время пользователя в UTC
+    from datetime import datetime as dt_class
+    # Парсим время как если бы оно было в user_tz
+    morning_dt = dt_class.strptime(morning_time_user, "%H:%M").replace(
+        tzinfo=user_tz, year=now_user_tz.year, month=now_user_tz.month, day=now_user_tz.day
+    )
+    evening_dt = dt_class.strptime(evening_time_user, "%H:%M").replace(
+        tzinfo=user_tz, year=now_user_tz.year, month=now_user_tz.month, day=now_user_tz.day
+    )
+    
+    # Конвертируем в UTC
+    morning_utc = morning_dt.astimezone(pytz_timezone('UTC'))
+    evening_utc = evening_dt.astimezone(pytz_timezone('UTC'))
+    
+    morning_time_utc = morning_utc.strftime("%H:%M")
+    evening_time_utc = evening_utc.strftime("%H:%M")
+    
+    last_morning_sent = today_str if morning_time_user <= current_time_str else None
+    last_evening_sent = today_str if evening_time_user <= current_time_str else None
+    
     await update_user_name_and_time(
         tg_id=message.from_user.id,
         name=data["name"],
-        morning_time=morning_time,
-        checkin_time=checkin_time,
+        morning_time=morning_time_utc,
+        checkin_time=evening_time_utc,
         start_date=today_str,
         last_morning_sent=last_morning_sent,
-        last_checkin_reminder_sent=last_checkin_reminder_sent,
+        last_checkin_reminder_sent=last_evening_sent,
+        timezone=timezone_str,
     )
-
+    
     await message.answer(
         "С какой сферы начнём?\n"
         "Выбери один вариант или напиши свой.",
         reply_markup=domain_kb,
     )
     await state.set_state(Onboarding.waiting_for_domain)
+
 
 @dp.message(Onboarding.waiting_for_domain)
 async def process_domain(message: Message, state: FSMContext):
@@ -330,11 +407,10 @@ async def cmd_reset(message: Message, state: FSMContext):
 # --- утренние напоминания ---
 
 async def send_morning_focus():
-    now = datetime.now()
-    current_time_str = now.strftime("%H:%M")
-    today_str = now.strftime("%Y-%m-%d")
+    now_utc = datetime.now(pytz_timezone('UTC'))
+    today_str_utc = now_utc.strftime("%Y-%m-%d")
 
-    users = await get_users_for_morning(current_time_str, today_str)
+    users = await get_users_for_morning(today_str_utc)
     if not users:
         return
 
@@ -344,6 +420,18 @@ async def send_morning_focus():
         tg_id = user["tg_id"]
         user_id = user["id"]
         name = user["name"] or ""
+        
+        # Конвертируем текущее UTC время в timezone пользователя
+        user_tz = pytz_timezone(user.get("timezone", "Europe/Moscow"))
+        now_user = now_utc.astimezone(user_tz)
+        current_time_str = now_user.strftime("%H:%M")
+        today_str = now_user.strftime("%Y-%m-%d")
+        
+        # Сравниваем: пришло ли время для этого пользователя
+        morning_time = user["morning_time"]
+        if morning_time > current_time_str:
+            # Ещё не пришло время
+            continue
 
         # если уже есть чек-ин за сегодня – утро пропускаем,
         # но помечаем, чтобы больше не слать за этот день
@@ -370,7 +458,7 @@ async def send_morning_focus():
         to_mark.append(user_id)
 
     if to_mark:
-        await mark_morning_sent(to_mark, today_str)
+        await mark_morning_sent(to_mark, today_str_utc)
 
 
 # --- вечерние итоги ---
@@ -394,11 +482,10 @@ def get_summary_text(status: str, name: str | None = None) -> str:
         )
 
 async def send_daily_checkins():
-    now = datetime.now()
-    current_time_str = now.strftime("%H:%M")
-    today_str = now.strftime("%Y-%m-%d")
+    now_utc = datetime.now(pytz_timezone('UTC'))
+    today_str_utc = now_utc.strftime("%Y-%m-%d")
 
-    users = await get_users_for_evening(current_time_str, today_str)
+    users = await get_users_for_evening(today_str_utc)
     if not users:
         return
 
@@ -408,6 +495,18 @@ async def send_daily_checkins():
         tg_id = user["tg_id"]
         user_id = user["id"]
         name = user["name"] or ""
+        
+        # Конвертируем текущее UTC время в timezone пользователя
+        user_tz = pytz_timezone(user.get("timezone", "Europe/Moscow"))
+        now_user = now_utc.astimezone(user_tz)
+        current_time_str = now_user.strftime("%H:%M")
+        today_str = now_user.strftime("%Y-%m-%d")
+        
+        # Сравниваем: пришло ли время для этого пользователя
+        checkin_time = user["checkin_time"]
+        if checkin_time > current_time_str:
+            # Ещё не пришло время
+            continue
 
         status = await get_today_checkin_status(user_id, today_str)
 
@@ -427,10 +526,8 @@ async def send_daily_checkins():
         ids_to_mark.append(user_id)
 
     if ids_to_mark:
-        await mark_evening_sent(ids_to_mark, today_str)
+        await mark_evening_sent(ids_to_mark, today_str_utc)
 
-
-# --- статистика за неделю ---
 
 # --- статистика за неделю ---
 

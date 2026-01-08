@@ -35,6 +35,7 @@ async def update_user_name_and_time(
     start_date: str,
     last_morning_sent: str | None,
     last_checkin_reminder_sent: str | None,
+    timezone: str = "Europe/Moscow",
 ):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
@@ -46,14 +47,14 @@ async def update_user_name_and_time(
                 checkin_time = ?,
                 start_date = ?,
                 last_morning_sent = ?,
-                last_checkin_reminder_sent = ?
+                last_checkin_reminder_sent = ?,
+                timezone = ?
             WHERE tg_id = ?
             """,
             (name, morning_time, checkin_time, start_date,
-             last_morning_sent, last_checkin_reminder_sent, tg_id),
+             last_morning_sent, last_checkin_reminder_sent, timezone, tg_id),
         )
         await db.commit()
-
 
 async def create_focus(user_tg_id: int, title: str, domain: str):
     async with aiosqlite.connect(DB_PATH) as db:
@@ -190,11 +191,10 @@ async def get_users_for_checkin(current_time_str: str):
         await cursor.close()
         return rows
 
-async def get_users_for_evening(current_time_str: str, today_str: str):
+async def get_users_for_evening(today_str: str):
     """
-    Берём пользователей, у которых:
-    - checkin_time <= текущее время
-    - напоминание ещё не слали сегодня
+    Берём всех пользователей, которые не получали вечернее сообщение сегодня.
+    Сравнение времени будет делаться в Python с учётом timezone.
     """
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -202,10 +202,9 @@ async def get_users_for_evening(current_time_str: str, today_str: str):
             """
             SELECT *
             FROM users
-            WHERE checkin_time <= ?
-              AND (last_checkin_reminder_sent IS NULL OR last_checkin_reminder_sent <> ?)
+            WHERE last_checkin_reminder_sent IS NULL OR last_checkin_reminder_sent <> ?
             """,
-            (current_time_str, today_str),
+            (today_str,),
         )
         rows = await cursor.fetchall()
         await cursor.close()
@@ -231,11 +230,10 @@ async def mark_evening_sent(user_ids: list[int], today_str: str):
 
 
 
-async def get_users_for_morning(current_time_str: str, today_str: str):
+async def get_users_for_morning(today_str: str):
     """
-    Берём пользователей, у которых:
-    - morning_time <= текущее время
-    - last_morning_sent != сегодня (или NULL)
+    Берём всех пользователей, которые не получали утреннее сообщение сегодня.
+    Сравнение времени будет делаться в Python с учётом timezone.
     """
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -243,10 +241,9 @@ async def get_users_for_morning(current_time_str: str, today_str: str):
             """
             SELECT *
             FROM users
-            WHERE morning_time <= ?
-              AND (last_morning_sent IS NULL OR last_morning_sent <> ?)
+            WHERE last_morning_sent IS NULL OR last_morning_sent <> ?
             """,
-            (current_time_str, today_str),
+            (today_str,),
         )
         rows = await cursor.fetchall()
         await cursor.close()

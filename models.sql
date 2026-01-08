@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     last_morning_sent DATE,
     last_checkin_reminder_sent DATE,
-    start_date DATE
+    start_date DATE,
+    timezone TEXT DEFAULT 'Europe/Moscow'
 );
 
 CREATE TABLE IF NOT EXISTS focuses (
