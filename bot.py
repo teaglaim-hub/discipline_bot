@@ -198,18 +198,6 @@ async def process_evening_time(message: Message, state: FSMContext):
         )
         return
 
-    data = await state.get_data()
-
-    now = datetime.now()
-    today_str = now.strftime("%Y-%m-%d")
-    current_time_str = now.strftime("%H:%M")
-
-    morning_time = data["morning_time"]
-    checkin_time = evening_time
-
-    last_morning_sent = today_str if morning_time <= current_time_str else None
-    last_checkin_reminder_sent = today_str if checkin_time <= current_time_str else None
-
     await state.update_data(evening_time=evening_time)
     
     await message.answer(
