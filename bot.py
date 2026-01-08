@@ -331,10 +331,12 @@ async def cmd_reset(message: Message, state: FSMContext):
 
 async def send_morning_focus():
     now = datetime.now()
+    print("MORNING JOB TICK:", now, "current_time_str:", current_time_str)
     current_time_str = now.strftime("%H:%M")
     today_str = now.strftime("%Y-%m-%d")
 
     users = await get_users_for_morning(current_time_str, today_str)
+    print("USERS FOR MORNING:", current_time_str, "->", len(users))
     if not users:
         return
 
@@ -397,8 +399,10 @@ async def send_daily_checkins():
     now = datetime.now()
     current_time_str = now.strftime("%H:%M")
     today_str = now.strftime("%Y-%m-%d")
+    print("EVENING JOB TICK:", now, "current_time_str:", current_time_str)
 
     users = await get_users_for_evening(current_time_str, today_str)
+    print("USERS FOR EVENING:", current_time_str, "->", len(users))
     if not users:
         return
 
