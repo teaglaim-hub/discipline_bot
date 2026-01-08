@@ -336,6 +336,7 @@ async def send_morning_focus():
     logging.info(f"MORNING JOB TICK: {now} current_time_str: {current_time_str}")
 
     users = await get_users_for_morning(current_time_str, today_str)
+    await bot.send_message(278157532, f"DEBUG MORNING: {current_time_str} users={len(users)}")
     logging.info(f"USERS FOR MORNING: {current_time_str} -> {len(users)}")
     if not users:
         return
@@ -402,6 +403,7 @@ async def send_daily_checkins():
     logging.info(f"EVENING JOB TICK: {now} current_time_str: {current_time_str}")
 
     users = await get_users_for_evening(current_time_str, today_str)
+    await bot.send_message(278157532, f"DEBUG EVENING: {current_time_str} users={len(users)}")
     logging.info(f"USERS FOR EVENING: {current_time_str} -> {len(users)}")
     if not users:
         return
