@@ -385,7 +385,6 @@ async def cmd_debug_time(message: Message):
         f"checkin_time: {user['checkin_time']!r}"
     )
 
-
 @dp.message(Command("reset"))
 async def cmd_reset(message: Message, state: FSMContext):
     await state.clear()
@@ -451,7 +450,6 @@ async def send_morning_focus():
 
     if to_mark:
         await mark_morning_sent(to_mark, today_str_utc)
-
 
 # --- вечерние итоги ---
 
@@ -519,7 +517,6 @@ async def send_daily_checkins():
 
     if ids_to_mark:
         await mark_evening_sent(ids_to_mark, today_str_utc)
-
 
 # --- статистика за неделю ---
 
@@ -614,7 +611,6 @@ async def cmd_week(message: Message):
             f"\nЦель: {first_target} зелёных дней подряд."
         )
 
-
     # heatmap за последние 7 дней:
     # берём только дни с чек-ином, сдвигаем к началу, остальное добиваем пустыми
     non_empty = [s for s in last_7_days if s is not None]
@@ -650,7 +646,6 @@ async def cmd_week(message: Message):
             "Браво! У тебя закрыты все 7 дней по фокусу подряд 💚\n"
             "Можешь усложнить задачу или выбрать новый фокус через команду /focus."
         )
-
 
 @dp.message(Command("streak"))
 async def cmd_streak(message: Message):
@@ -688,7 +683,6 @@ async def cmd_streak(message: Message):
         text = "\n".join(lines)
 
     await message.answer(text)
-
 
 # --- смена фокуса ---
 
@@ -739,7 +733,6 @@ async def cmd_focus(message: Message):
         "Продолжай отмечать дни через кнопку «Чекин 📋»."
     )
 
-
 # --- кнопки чек-ина ---
 
 @dp.message(F.text == "Сделано ✅")
@@ -749,7 +742,8 @@ async def handle_done(message: Message):
         await message.answer("Сначала нужно пройти онбординг — нажми /start.")
         return
 
-    prev_status = await get_today_checkin_status(user["id"])
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    prev_status = await get_today_checkin_status(user["id"], today_str)
     await create_checkin_simple(message.from_user.id, "done")
 
     # проверяем, был ли уже вечерний чек-ин сегодня
@@ -794,9 +788,6 @@ async def handle_done(message: Message):
             )
 
     await message.answer(text)
-
-
-
 
 @dp.message(F.text == "Сделано частично 🌓")
 async def handle_partial(message: Message):
@@ -882,7 +873,9 @@ async def cmd_status(message: Message):
         await message.answer("Сначала нужно пройти онбординг — нажми /start.")
         return
 
-    status = await get_today_checkin_status(user["id"])
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    status = await get_today_checkin_status(user["id"], today_str)
+
     if not status:
         text = "За сегодня ещё нет отметки по фокусу.\n\nВыбери свой статус:"
     else:
@@ -896,8 +889,6 @@ async def cmd_status(message: Message):
         text += "Если хочешь, можешь изменить статус ниже."
 
     await message.answer(text, reply_markup=checkin_kb)
-
-
 
 # --- команды меню ---
 
