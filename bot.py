@@ -298,6 +298,17 @@ async def process_focus(message: Message, state: FSMContext):
         domain=domain,
     )
 
+    await update_user_name_and_time(
+        tg_id=message.from_user.id,
+        name=data["name"],
+        morning_time=data["morning_time_utc"],
+        checkin_time=data["evening_time_utc"],
+        start_date=data["today_str"],
+        last_morning_sent=data["last_morning_sent"],
+        last_checkin_reminder_sent=data["last_evening_sent"],
+        timezone=data["timezone"],
+    )
+
     await message.answer(
         "Отлично. На этой неделе работаем только с этим:\n\n"
         f"«{focus_title}» в сфере «{domain}».\n\n"
@@ -310,7 +321,6 @@ async def process_focus(message: Message, state: FSMContext):
         "Чтобы потом быстро отмечать результат за день, у тебя всегда под рукой есть кнопка:",
         reply_markup=checkin_manual_kb,
     )
-
 
 # --- чек-ины старыми командами (можно оставить как бэкап или выпилить позже) ---
 
