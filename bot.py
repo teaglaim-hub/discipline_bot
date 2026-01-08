@@ -487,7 +487,7 @@ async def send_daily_checkins():
         name = user["name"] or ""
         
         # Конвертируем текущее UTC время в timezone пользователя
-        user_tz = pytz_timezone(user.get("timezone", "Europe/Moscow"))
+        user_tz = pytz_timezone(user["timezone"] or "Europe/Moscow")
         now_user = now_utc.astimezone(user_tz)
         current_time_str = now_user.strftime("%H:%M")
         today_str = now_user.strftime("%Y-%m-%d")
