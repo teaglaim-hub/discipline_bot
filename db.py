@@ -7,6 +7,14 @@ async def init_db():
         with open("models.sql", "r", encoding="utf-8") as f:
             await db.executescript(f.read())
         await db.commit()
+    
+    # Добавляем столбец timezone, если его нет
+    async with aiosqlite.connect(DB_PATH) as db:
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN timezone TEXT DEFAULT 'Europe/Moscow'")
+            await db.commit()
+        except:
+            pass  # столбец уже существует
 
 
 async def get_user_by_tg_id(tg_id: int):
