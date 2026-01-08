@@ -462,7 +462,7 @@ async def get_streak_for_user(tg_id: int):
 
 
 
-async def get_today_checkin_status(user_id: int):
+async def get_today_checkin_status(user_id: int, today_str: str):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
@@ -470,11 +470,11 @@ async def get_today_checkin_status(user_id: int):
             SELECT status
             FROM checkins
             WHERE user_id = ?
-              AND date = DATE('now')
+              AND date = ?
             ORDER BY id DESC
             LIMIT 1
             """,
-            (user_id,),
+            (user_id, today_str),
         )
         row = await cursor.fetchone()
         await cursor.close()

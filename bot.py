@@ -347,7 +347,7 @@ async def send_morning_focus():
 
         # если уже есть чек-ин за сегодня – утро пропускаем,
         # но помечаем, чтобы больше не слать за этот день
-        status = await get_today_checkin_status(user_id)
+        status = await get_today_checkin_status(user_id, today_str)
         if status:
             to_mark.append(user_id)
             continue
@@ -409,7 +409,7 @@ async def send_daily_checkins():
         user_id = user["id"]
         name = user["name"] or ""
 
-        status = await get_today_checkin_status(user_id)
+        status = await get_today_checkin_status(user_id, today_str)
 
         if status:
             # уже есть отметка — шлём итог
