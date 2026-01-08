@@ -389,9 +389,11 @@ async def cmd_debug_time(message: Message):
 async def cmd_reset(message: Message, state: FSMContext):
     await state.clear()
     await message.answer("Начнём заново. Как тебя звать?")
-    await create_user(message.from_user.id)
+    try:
+        await create_user(message.from_user.id)
+    except:
+        pass  # пользователь уже существует
     await state.set_state(Onboarding.waiting_for_name)
-
 
 # --- утренние напоминания ---
 
