@@ -187,6 +187,7 @@ async def process_morning_time(message: Message, state: FSMContext):
 
 @dp.message(Onboarding.waiting_for_evening_time)
 async def process_evening_time(message: Message, state: FSMContext):
+    print(f"DEBUG: process_evening_time called with text='{message.text}'")
     evening_time = message.text.strip()
 
     if not is_valid_time(evening_time):
