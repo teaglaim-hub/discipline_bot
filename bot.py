@@ -31,6 +31,7 @@ from db import (
     get_today_checkin_status,
     mark_evening_sent,
     get_streak_for_user,
+    delete_user_complete,
 )
 
 import logging
@@ -381,11 +382,11 @@ async def cmd_debug_time(message: Message):
 @dp.message(Command("reset"))
 async def cmd_reset(message: Message, state: FSMContext):
     await state.clear()
+    # Полностью удалить старого пользователя со всеми данными
+    await delete_user_complete(message.from_user.id)
+    # Создать заново
+    await create_user(message.from_user.id)
     await message.answer("Начнём заново. Как тебя звать?")
-    try:
-        await create_user(message.from_user.id)
-    except:
-        pass  # пользователь уже существует
     await state.set_state(Onboarding.waiting_for_name)
 
 # --- утренние напоминания ---

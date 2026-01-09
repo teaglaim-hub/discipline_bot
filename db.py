@@ -34,6 +34,17 @@ async def create_user(tg_id: int, name: str = None):
         )
         await db.commit()
 
+async def delete_user_complete(tg_id: int):
+    """Полностью удалить пользователя, его фокусы и чек-ины"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Удалить все чек-ины этого пользователя
+        await db.execute("DELETE FROM checkins WHERE user_id = (SELECT id FROM users WHERE tg_id = ?)", (tg_id,))
+        # Удалить все фокусы этого пользователя
+        await db.execute("DELETE FROM focuses WHERE user_id = (SELECT id FROM users WHERE tg_id = ?)", (tg_id,))
+        # Удалить самого пользователя
+        await db.execute("DELETE FROM users WHERE tg_id = ?", (tg_id,))
+        await db.commit()
+
 
 async def update_user_name_and_time(
     tg_id: int,
