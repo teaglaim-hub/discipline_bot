@@ -354,7 +354,7 @@ async def get_week_stats_for_user(tg_id: int):
         d = today
         for _ in range(7):
             status = day_status.get(d)
-            if status in ("done", "partial"):
+            if status == "done":
                 current_streak += 1
                 d = d - timedelta(days=1)
             else:
@@ -450,7 +450,7 @@ async def get_streak_for_user(tg_id: int):
         d = last_date
         while True:
             status = day_status.get(d)
-            if status in ("done", "partial"):
+            if status == "done":
                 current_streak += 1
                 d = d - timedelta(days=1)
             else:

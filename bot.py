@@ -531,7 +531,9 @@ async def cmd_week(message: Message):
     focus_title = data["focus_title"]
     stats = data["stats"]
     streak = data.get("streak", 0)
+    best_streak = data.get("best_streak", 0)
     last_7_days = data.get("last_7_days", [])
+
 
     done = stats.get("done", 0)
     partial = stats.get("partial", 0)
@@ -581,13 +583,14 @@ async def cmd_week(message: Message):
             "Можешь либо закрепить результат, либо перейти к следующему уровню сложности."
         )
 
-    # добавляем фразу про серию дней
+        # добавляем фразу про серию дней
     if streak > 1:
         summary_text += f"\n\nТы держишься уже {streak} дней подряд!"
     elif streak == 1:
         summary_text += "\n\nОтличное начало серии — первый день уже в копилке!"
 
-    level = get_achievement_level(streak)
+    # уровень ачивки считаем по лучшей серии
+    level = get_achievement_level(best_streak)
     if level > 0:
         emoji = ACHIEVEMENT_LEVELS[level]
         if level < len(ACHIEVEMENT_THRESHOLDS):
@@ -608,6 +611,7 @@ async def cmd_week(message: Message):
             f"\n\n🏅 Пока без ачивки."
             f"\nЦель: {first_target} зелёных дней подряд."
         )
+
 
     # heatmap за последние 7 дней:
     # берём только дни с чек-ином, сдвигаем к началу, остальное добиваем пустыми
@@ -794,8 +798,10 @@ async def handle_partial(message: Message):
         await message.answer("Сначала нужно пройти онбординг — нажми /start.")
         return
 
-    prev_status = await get_today_checkin_status(user["id"])
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    prev_status = await get_today_checkin_status(user["id"], today_str)
     await create_checkin_simple(message.from_user.id, "partial")
+
 
     today_str = datetime.now().strftime("%Y-%m-%d")
     evening_already_sent = (user["last_checkin_reminder_sent"] == today_str)
@@ -828,7 +834,8 @@ async def handle_fail(message: Message):
         await message.answer("Сначала нужно пройти онбординг — нажми /start.")
         return
 
-    prev_status = await get_today_checkin_status(user["id"])
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    prev_status = await get_today_checkin_status(user["id"], today_str)
     await create_checkin_simple(message.from_user.id, "fail")
 
     today_str = datetime.now().strftime("%Y-%m-%d")
