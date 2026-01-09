@@ -223,53 +223,30 @@ async def process_timezone(message: Message, state: FSMContext):
             "Выбери из предложенных вариантов, пожалуйста."
         )
         return
-    
+
+    # достаём то, что юзер ввёл раньше
     data = await state.get_data()
-    now_utc = datetime.now(pytz_timezone('UTC'))
+    morning_time_user = data["morning_time"]     # '08:30'
+    evening_time_user = data["evening_time"]     # '21:30'
+
+    # текущая дата в таймзоне пользователя — пойдёт как start_date
+    now_utc = datetime.now(pytz_timezone("UTC"))
     user_tz = pytz_timezone(timezone_str)
     now_user_tz = now_utc.astimezone(user_tz)
     today_str = now_user_tz.strftime("%Y-%m-%d")
-    current_time_str = now_user_tz.strftime("%H:%M")
-    
-    morning_time_user = data["morning_time"]
-    evening_time_user = data["evening_time"]
-    
-    # Конвертируем время пользователя в UTC
-    from datetime import datetime as dt_class
-    # Вместо replace(... year=now_user_tz.year ...) делаем так:
 
-    # Берём дату ТОЛЬКО из now_user_tz, а время — из ввода
-    morning_dt_local = dt_class.strptime(
-        f"{today_str} {morning_time_user}",
-        "%Y-%m-%d %H:%M",
-    ).replace(tzinfo=user_tz)
-
-    evening_dt_local = dt_class.strptime(
-        f"{today_str} {evening_time_user}",
-        "%Y-%m-%d %H:%M",
-    ).replace(tzinfo=user_tz)
-
-    # Переводим локальное время пользователя в UTC
-    morning_utc = morning_dt_local.astimezone(pytz_timezone("UTC"))
-    evening_utc = evening_dt_local.astimezone(pytz_timezone("UTC"))
-
-    # В стейт кладём строки HH:MM по UTC
-    morning_time_utc = morning_utc.strftime("%H:%M")
-    evening_time_utc = evening_utc.strftime("%H:%M")
-
-    last_morning_sent = today_str if morning_time_user <= current_time_str else None
-    last_evening_sent = today_str if evening_time_user <= current_time_str else None
+    last_morning_sent = None
+    last_evening_sent = None
 
     await state.update_data(
         timezone=timezone_str,
-        morning_time_utc=morning_time_utc,
-        evening_time_utc=evening_time_utc,
+        morning_time=morning_time_user,
+        evening_time=evening_time_user,
         today_str=today_str,
         last_morning_sent=last_morning_sent,
-        last_evening_sent=last_evening_sent
+        last_evening_sent=last_evening_sent,
     )
 
-    
     await message.answer(
         "С какой сферы начнём?\n"
         "Выбери один вариант или напиши свой.",
@@ -308,13 +285,14 @@ async def process_focus(message: Message, state: FSMContext):
     await update_user_name_and_time(
         tg_id=message.from_user.id,
         name=data["name"],
-        morning_time=data["morning_time_utc"],
-        checkin_time=data["evening_time_utc"],
+        morning_time=data["morning_time"],              # локальное HH:MM
+        checkin_time=data["evening_time"],              # локальное HH:MM
         start_date=data["today_str"],
         last_morning_sent=data["last_morning_sent"],
         last_checkin_reminder_sent=data["last_evening_sent"],
         timezone=data["timezone"],
     )
+
 
     await message.answer(
         "Отлично. На этой неделе работаем только с этим:\n\n"
@@ -427,16 +405,18 @@ async def send_morning_focus():
         user_id = user["id"]
         name = user["name"] or ""
         
-        # Конвертируем текущее UTC время в timezone пользователя
+        # локальное время пользователя
         user_tz = pytz_timezone(user["timezone"] or "Europe/Moscow")
         now_user = now_utc.astimezone(user_tz)
         today_str = now_user.strftime("%Y-%m-%d")
 
-        # В БД лежит время в UTC, сравниваем тоже с UTC
-        morning_time_utc = user["morning_time"]
-        current_time_utc_str = now_utc.strftime("%H:%M")
+        morning_time_local = user["morning_time"]      # 'HH:MM' локальное
+        if not morning_time_local:
+            continue
 
-        if morning_time_utc > current_time_utc_str:
+        # если сейчас ещё не настало его локальное время – ждём
+        current_time_local_str = now_user.strftime("%H:%M")
+        if current_time_local_str < morning_time_local:
             continue
 
         # если уже есть чек-ин за сегодня – утро пропускаем,
@@ -501,18 +481,19 @@ async def send_daily_checkins():
         user_id = user["id"]
         name = user["name"] or ""
         
-        # Конвертируем текущее UTC время в timezone пользователя
+        # локальное время пользователя
         user_tz = pytz_timezone(user["timezone"] or "Europe/Moscow")
         now_user = now_utc.astimezone(user_tz)
         today_str = now_user.strftime("%Y-%m-%d")
 
-        # В БД лежит UTC-время, сравниваем тоже с UTC
-        checkin_time_utc = user["checkin_time"]
-        current_time_utc_str = now_utc.strftime("%H:%M")
-
-        if checkin_time_utc > current_time_utc_str:
+        checkin_time_local = user["checkin_time"]      # 'HH:MM' локальное
+        if not checkin_time_local:
             continue
 
+        # если сейчас ещё не настало его локальное вечернее время – ждём
+        current_time_local_str = now_user.strftime("%H:%M")
+        if current_time_local_str < checkin_time_local:
+            continue
 
 
         status = await get_today_checkin_status(user_id, today_str)
