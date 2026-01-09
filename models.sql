@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
     last_morning_sent DATE,
     last_checkin_reminder_sent DATE,
     start_date DATE,
-    timezone TEXT DEFAULT 'Europe/Moscow'
+    timezone TEXT DEFAULT 'Europe/Moscow',
+    best_streak_overall INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS focuses (
@@ -34,3 +35,6 @@ CREATE TABLE IF NOT EXISTS checkins (
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (focus_id) REFERENCES focuses(id)
 );
+
+-- Migration: добавить best_streak_overall если её нет
+-- (будет выполнено в db.py при инициализации)

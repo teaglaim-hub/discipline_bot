@@ -15,6 +15,14 @@ async def init_db():
             await db.commit()
         except:
             pass  # столбец уже существует
+    
+    # Добавляем столбец best_streak_overall, если его нет
+    async with aiosqlite.connect(DB_PATH) as db:
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN best_streak_overall INTEGER NOT NULL DEFAULT 0")
+            await db.commit()
+        except:
+            pass  # столбец уже существует
 
 
 async def get_user_by_tg_id(tg_id: int):
@@ -390,13 +398,21 @@ async def get_week_stats_for_user(tg_id: int):
             last_7_days_statuses.append(status)  # может быть None, done, partial, fail
             d = d + timedelta(days=1)
 
+        # Берём best_streak_overall пользователя
+        cursor = await db.execute("SELECT best_streak_overall FROM users WHERE id = ?", (user["id"],))
+        user_data = await cursor.fetchone()
+        await cursor.close()
+
+        best_streak_overall = user_data["best_streak_overall"] or 0 if user_data else 0
+
         return {
-            "focus_title": focus["title"],
-            "stats": stats,
-            "streak": current_streak,
-            "best_streak": best_streak,
-            "last_7_days": last_7_days_statuses,
-        }
+           "focus_title": focus["title"],
+           "stats": stats,
+           "streak": current_streak,
+           "best_streak": best_streak_overall,  # используем overall вместо focus best_streak
+           "last_7_days": last_7_days_statuses,
+       }
+
 
 async def get_streak_for_user(tg_id: int):
     """Текущий и лучший стрик по активному фокусу для /streak."""
@@ -497,10 +513,10 @@ async def get_today_checkin_status(user_id: int, today_str: str):
         return row["status"] if row else None
 
 
-async def set_new_focus_for_user(tg_id: int, title: str, domain: str | None = None):
+async def set_new_focus_for_user(tg_id: int, title: str, domain: str = None) -> bool:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-
+        
         cursor = await db.execute("SELECT id FROM users WHERE tg_id = ?", (tg_id,))
         user = await cursor.fetchone()
         await cursor.close()
@@ -509,21 +525,41 @@ async def set_new_focus_for_user(tg_id: int, title: str, domain: str | None = No
 
         user_id = user["id"]
 
-        await db.execute(
-            """
-            UPDATE focuses
-            SET is_active = 0, ended_at = CURRENT_TIMESTAMP
-            WHERE user_id = ? AND is_active = 1
-            """,
-            (user_id,),
+        # Получаем current_streak старого фокуса перед тем, как его закрыть
+        cursor = await db.execute(
+            "SELECT id, best_streak FROM focuses WHERE user_id = ? AND is_active = 1 ORDER BY started_at DESC LIMIT 1",
+            (user_id,)
         )
+        old_focus = await cursor.fetchone()
+        await cursor.close()
+
+        old_best_streak = 0
+        if old_focus:
+            old_best_streak = old_focus["best_streak"] or 0
+
+        # Обновляем users.best_streak_overall (берём максимум)
+        cursor = await db.execute("SELECT best_streak_overall FROM users WHERE id = ?", (user_id,))
+        user_row = await cursor.fetchone()
+        await cursor.close()
+        
+        current_overall = user_row["best_streak_overall"] or 0 if user_row else 0
+        new_overall = max(current_overall, old_best_streak)
 
         await db.execute(
-            """
-            INSERT INTO focuses (user_id, title, domain, is_active)
-            VALUES (?, ?, ?, 1)
-            """,
-            (user_id, title, domain),
+            "UPDATE users SET best_streak_overall = ? WHERE id = ?",
+            (new_overall, user_id)
+        )
+
+        # Закрываем старый фокус
+        await db.execute(
+            "UPDATE focuses SET is_active = 0, ended_at = CURRENT_TIMESTAMP WHERE user_id = ? AND is_active = 1",
+            (user_id,)
+        )
+
+        # Создаём новый фокус (best_streak = 0 по умолчанию)
+        await db.execute(
+            "INSERT INTO focuses (user_id, title, domain, is_active) VALUES (?, ?, ?, 1)",
+            (user_id, title, domain)
         )
 
         await db.commit()
