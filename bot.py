@@ -532,7 +532,7 @@ async def cmd_week(message: Message):
     focus_title = data["focus_title"]
     stats = data["stats"]
     streak = data.get("streak", 0)
-    best_streak = data.get("best_streak", 0)
+    best_streak_overall = data.get("best_streak", 0)
     last_7_days = data.get("last_7_days", [])
 
 
@@ -590,8 +590,8 @@ async def cmd_week(message: Message):
     elif streak == 1:
         summary_text += "\n\nОтличное начало серии — первый день уже в копилке!"
 
-    # уровень ачивки считаем по лучшей серии
-    level = get_achievement_level(best_streak)
+    # постоянная ачивка по общему рекорду
+    level = get_achievement_level(best_streak_overall)
     if level > 0:
         emoji = ACHIEVEMENT_LEVELS[level]
         if level < len(ACHIEVEMENT_THRESHOLDS):

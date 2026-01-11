@@ -405,11 +405,20 @@ async def get_week_stats_for_user(tg_id: int):
 
         best_streak_overall = user_data["best_streak_overall"] or 0 if user_data else 0
 
+        # если текущий стрик побил общий рекорд — обновляем и его
+        if current_streak > best_streak_overall:
+            best_streak_overall = current_streak
+            await db.execute(
+                "UPDATE users SET best_streak_overall = ? WHERE id = ?",
+                (best_streak_overall, user["id"]),
+            )
+            await db.commit()
+
         return {
            "focus_title": focus["title"],
            "stats": stats,
            "streak": current_streak,
-           "best_streak": best_streak_overall,  # используем overall вместо focus best_streak
+           "best_streak": best_streak_overall,  # используем overall
            "last_7_days": last_7_days_statuses,
        }
 
